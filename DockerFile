@@ -1,0 +1,40 @@
+name: Code Review by GPT
+description: Automatically create a comment about differences in a pull request by GPT
+author: yu-iskw
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    name: Code Review
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
+          java-version: 17
+
+      - name: Compile Java code
+        run: javac entrypoint.java
+
+      - name: Run GPT Code Review
+        id: gpt
+        uses: docker://openjdk:17
+        with:
+          env:
+            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GITHUB_REPOSITORY: ${{ github.repository }}
+            GITHUB_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+            GIT_COMMIT_HASH: ${{ github.event.pull_request.head.sha }}
+          args: --add-exports java.base/jdk.internal.ref=ALL-UNNAMED entrypoint
+
+      - name: Output Results
+        run: |
+          echo "Entire Prompt Body: ${{ steps.gpt.outputs.entire_prompt_body }}"
+          echo "Review Result: ${{ steps.gpt.outputs.review_result }}"
